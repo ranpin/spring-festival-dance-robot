@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Conda / venv
+.venv/
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project artifacts (产物不入仓)
+video2robot/data/video_*/results.pkl
+video2robot/data/video_*/robot_motion*.pkl
+video2robot/data/video_*/smplx*.npz
+video2robot/data/video_*/smplx_tracks.json
+video2robot/data/video_*/original.mp4
+video2robot/data/video_*/world4d.*
+video2robot/data/video_*/subject-*.smpl
+video2robot/data/video_*/mujoco_robot.mp4
+video2robot/data/video_*/config.json
+
+# HF cache / weights
+data/pretrain/
+data/body_models/
+data/wheels/
+data/examples/
+
+# Kaggle output
+output/
+*.log
