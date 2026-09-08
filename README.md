@@ -1,12 +1,63 @@
 # spring-festival-dance-robot
 
-复刻 [Datawhale `every-embodied` 教程](../../datawhalechina/every-embodied/blob/main/07-%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%93%8D%E4%BD%9C%E3%80%81%E8%BF%90%E5%8A%A8%E6%8E%A7%E5%88%B6/Locomotion/01%E6%98%A5%E6%99%9A%E8%88%9E%E8%B9%88%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%A4%8D%E5%88%BB.md) 的「春晚舞蹈机器人」项目：
+![demo](assets/demo_hero.png)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-green.svg)](kaggle/main.py)
+[![Demo](https://img.shields.io/badge/Demo-viser%203D-brightgreen.svg)](#效果)
+
+复刻 [Datawhale `every-embodied` 教程](../../datawhalechina/every-embodied/blob/main/07-%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%93%8D%E4%BD%9C%E3%80%81%E8%BF%90%E5%8A%A8%E6%8E%A7%E5%88%B6/Locomotion/01%E6%98%A5%E6%99%9A%E8%88%9E%E8%B9%88%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%A4%8D%E5%88%BB.md) 的「春晚舞蹈机器人」项目：把舞蹈视频里的人体动作，重定向成 Unitree G1 机器人动作，并在浏览器里做交互式 3D 演示。
 
 ```
 文字/视频 → PromptHMR(SMPL-X) → GMR → unitree_g1 动作 → viser 交互式 3D
 ```
 
-**当前状态**：dance_1.mp4（春晚群舞 39s，1180 帧）已在 Kaggle P100 上完整跑通，9 个舞者全部重定向为 unitree_g1 机器人动作，Mac 上 viser 演示运行中。
+**当前状态**：dance_1.mp4（春晚群舞 39s，1180 帧）已在 Kaggle P100 上完整跑通，**9 个舞者全部重定向为 unitree_g1 机器人动作**，Mac 上 viser 演示运行中。
+
+---
+
+## 目录
+
+- [效果](#效果)
+- [Pipeline](#pipeline)
+- [Repo 结构](#repo-结构)
+- [跑法](#跑法)
+- [Baseline & Patches](#baseline--patchesvendor-状态)
+- [关键踩坑](#关键踩坑复现迭代时必看)
+- [Acknowledgement](#acknowledgement)
+
+---
+
+## 效果
+
+![demo](assets/demo_hero.png)
+
+9 个 Unitree G1 机器人同步复刻春晚群舞，叠加在原视频上，带相机视锥。viser 界面提供播放/暂停、时间轴、帧率、视角切换（含「从视频相机视角看」）、单个机器人显隐、材质切换等控件。
+
+**演示启动**（详见 [跑法](#跑法)）：
+```bash
+cd video2robot && ./run_demo.sh
+# 浏览器打开 http://localhost:8789
+```
+
+---
+
+## Pipeline
+
+```mermaid
+graph LR
+  A[舞蹈视频<br/>dance_1.mp4] --> B[PromptHMR<br/>人体检测+跟踪]
+  B --> C[SMPL-X<br/>人体姿态参数]
+  C --> D[GMR<br/>通用动作重定向]
+  D --> E[unitree_g1<br/>机器人关节动作]
+  E --> F[viser<br/>交互式 3D 演示]
+```
+
+| 阶段 | 工具 | 运行环境 |
+|---|---|---|
+| 人体姿态提取 | PromptHMR | Kaggle GPU（CUDA，重）|
+| 动作重定向 | GMR | Kaggle（CPU，mink IK）|
+| 可视化 | robot_viser.py | Mac（CPU，轻量）|
 
 ---
 
@@ -14,6 +65,7 @@
 
 ```
 spring-festival-dance-robot/
+├── assets/                       # 演示截图（本仓库新增）
 ├── video2robot/                  # vendored from datawhalechina/every-embodied (main HEAD)
 │   ├── scripts/                  # extract_pose / convert_to_robot / visualize / run_pipeline
 │   ├── video2robot/              # python package
