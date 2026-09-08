@@ -14,6 +14,8 @@
 
 **当前状态**：dance_1.mp4（春晚群舞 39s，1180 帧）已在 Kaggle P100 上完整跑通，**9 个舞者全部重定向为 unitree_g1 机器人动作**，Mac 上 viser 演示运行中。
 
+> 📖 完整复现步骤、踩坑与故障排查见 [`docs/replication-notes.md`](docs/replication-notes.md)。
+
 ---
 
 ## 目录
