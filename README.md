@@ -1,6 +1,6 @@
 # spring-festival-dance-robot
 
-复刻 [Datawhale `every-embodied` 教程](../../datawhalechina/every-embodied/blob/main/07-%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%93%8D%E4%BD%9C%E3%80%81%E8%BF%90%E5%8A%A8%E6%8E%A7%E5%88%B6/Locomotion/01%E6%98%A5%E6%99%9A%E8%88%9E%E8%B9%88%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%A4%8D%E5%88%BB.md) 的「春晚舞蹈机器人」项目：
+复刻 [Datawhale `every-embodied` 教程](https://github.com/datawhalechina/every-embodied/blob/main/07-%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%93%8D%E4%BD%9C%E3%80%81%E8%BF%90%E5%8A%A8%E6%8E%A7%E5%88%B6/Locomotion/01%E6%98%A5%E6%99%9A%E8%88%9E%E8%B9%88%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%A4%8D%E5%88%BB.md) 的「春晚舞蹈机器人」项目：
 
 ```
 文字/视频 → PromptHMR(SMPL-X) → GMR → unitree_g1 动作 → viser 交互式 3D
@@ -95,7 +95,7 @@ PORT=9000 ./run_demo.sh                # 换端口
 ### 权重路径
 - HF `Datawhale/spring-festival-wushu-robot-replication-model`（~14.8G：pretrain + body_models + examples + wheels，**包含春晚舞蹈视频** `examples/dance_1.mp4`）。
 - HF weights 的 `data/` 软链到 `third_party/PromptHMR/data/` 即可（config.py 已约定路径）。
-- PromptHMR **硬编码 `/code/data/pretrain/camcalib_sa_biplied_l2.ckpt`** → 必须 `ln -sfn $PH /code`（kernel STEP 10 已处理）。
+- PromptHMR **硬编码 `/code/data/pretrain/camcalib_sa_biased_l2.ckpt`** → 必须 `ln -sfn $PH /code`（kernel STEP 10 已处理）。
 - HF wheels（detectron2 / lietorch / sam2 / droid_backends_intr / gloss）是 **cp311 linux_x86_64** → phmr env 必须 **Python 3.11**，不能用上游 yml 的 py3.10。
 - `yolo11x.pt` 不必有，检测器硬编码 `detectron2`（权重在 `sam2_ckpts/keypoint_rcnn_5ad38f.pkl`）。
 
