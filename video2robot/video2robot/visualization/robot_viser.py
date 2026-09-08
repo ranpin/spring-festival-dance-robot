@@ -1007,6 +1007,26 @@ def main() -> None:
         for client in server.get_clients().values():
             _apply_default_view(client)
 
+    follow_label_to_entry = {}
+    follow_options = ["全景 (all)"]
+    for entry in entries:
+        lbl = (
+            f"Track {entry.track_index} ({_color_name_for_track(entry.track_index)})"
+            if len(entries) > 1
+            else f"Track {entry.track_index}"
+        )
+        follow_label_to_entry[lbl] = entry
+        follow_options.append(lbl)
+    gui_follow_track = server.gui.add_dropdown(
+        "Follow robot", follow_options, initial_value="全景 (all)"
+    )
+
+    @gui_follow_track.on_update
+    def _(_) -> None:
+        if gui_follow_track.value == "全景 (all)":
+            for client in server.get_clients().values():
+                _apply_default_view(client)
+
     for entry in entries:
         if len(entries) > 1:
             color_name = _color_name_for_track(entry.track_index)
@@ -1144,7 +1164,21 @@ def main() -> None:
 
         server.flush()
 
-        if gui_view_from_video.value:
+        follow_label = gui_follow_track.value
+        if follow_label != "全景 (all)":
+            follow_entry = follow_label_to_entry.get(follow_label)
+            if follow_entry is not None:
+                follow_r_idx = follow_entry.vis_to_robot[vis_idx]
+                follow_root = follow_entry.root_pos_yup[follow_r_idx].astype(np.float32)
+                follow_cam_pos = follow_root + np.array([0.0, 1.2, 2.6], dtype=np.float32)
+                for client in server.get_clients().values():
+                    try:
+                        client.camera.position = follow_cam_pos
+                        client.camera.look_at = follow_root
+                        client.camera.up_direction = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+                    except Exception:
+                        pass
+        elif gui_view_from_video.value:
             look_dir = cam_R[:, 2].astype(np.float32)
             primary_idx = primary_entry.vis_to_robot[vis_idx]
             v_to_robot = (primary_entry.root_pos_yup[primary_idx] - cam_T).astype(np.float32)
