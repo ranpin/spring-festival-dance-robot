@@ -19,7 +19,7 @@ spring-festival-dance-robot/
 │   ├── video2robot/              # python package
 │   ├── web/                      # FastAPI + viser web UI
 │   ├── configs/                  # default.yaml 等
-│   ├── data/                     # video_001..005 占位（产物不入仓）
+│   ├── data/                     # 仅 .gitkeep 占位（video_001..005 运行时自建，产物不入仓）
 │   ├── envs/                     # 上游 phmr/gmr conda yamls（参考）
 │   ├── patches/                  # 上游 patches（已应用到 third_party 内）
 │   ├── run_demo.sh               # Mac 交互式演示启动脚本（本仓库新增）
@@ -50,6 +50,7 @@ ls /tmp/v2r_out/output/                          # results.pkl + robot_motion*.p
 ### 2. Mac 本地演示（viser 交互式 3D）
 ```bash
 # 一次性准备 v2rviz conda env（torch CPU + viser + trimesh + opencv）
+# 注：run_demo.sh 内 PY 硬编码为 /Users/ranpin/miniconda3/envs/v2rviz/bin/python，其他机器请改成自己的环境路径
 conda create -y -n v2rviz python=3.11 -c conda-forge --override-channels
 conda run -n v2rviz python -m pip install torch numpy scipy joblib trimesh opencv-python viser==0.2.23
 
@@ -96,7 +97,7 @@ PORT=9000 ./run_demo.sh                # 换端口
 - HF `Datawhale/spring-festival-wushu-robot-replication-model`（~14.8G：pretrain + body_models + examples + wheels，**包含春晚舞蹈视频** `examples/dance_1.mp4`）。
 - HF weights 的 `data/` 软链到 `third_party/PromptHMR/data/` 即可（config.py 已约定路径）。
 - PromptHMR **硬编码 `/code/data/pretrain/camcalib_sa_biased_l2.ckpt`** → 必须 `ln -sfn $PH /code`（kernel STEP 10 已处理）。
-- HF wheels（detectron2 / lietorch / sam2 / droid_backends_intr / gloss）是 **cp311 linux_x86_64** → phmr env 必须 **Python 3.11**，不能用上游 yml 的 py3.10。
+- HF wheels（detectron2 / lietorch / sam2 / droid_backends_intr）是 **cp311 linux_x86_64** → phmr env 必须 **Python 3.11**，不能用上游 yml 的 py3.10（wheels 里另有 cp38-abi3 的 gloss，kernel 未安装）。
 - `yolo11x.pt` 不必有，检测器硬编码 `detectron2`（权重在 `sam2_ckpts/keypoint_rcnn_5ad38f.pkl`）。
 
 ### Pipeline
