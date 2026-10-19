@@ -103,7 +103,7 @@
 <!-- ============ 演示 ============ -->
 <section id="demo">
   <h2>演示</h2>
-  <p class="sec-note">左：输入的人类群舞原片（截取 24s）。右：重定向后 9 台 Unitree G1 的 3D 动作（viser 实时渲染录屏，含原视频相机锥）。</p>
+  <p class="sec-note">左：输入的人类群舞原片（前 24s）。右：重定向后 9 台 Unitree G1 的 3D 动作（viser 逐帧渲染，含原视频相机锥）。两侧均为 720 帧 @30fps，<b>逐帧对齐</b>。</p>
   <div class="duo">
     <div class="vcard in">
       <div class="vhead"><span class="tag">输入</span> 人类群舞原片</div>
@@ -113,12 +113,12 @@
     <div class="vcard out">
       <div class="vhead"><span class="tag">输出</span> 9 台 Unitree G1 机器人</div>
       <video src="robot_dance.mp4" autoplay loop muted playsinline controls></video>
-      <div class="vfoot">viser 3D 场景 · SMPL-X → GMR → G1 29 DoF</div>
+      <div class="vfoot">viser 3D 场景 · 720 帧 @30fps · SMPL-X → GMR → G1 29 DoF</div>
     </div>
   </div>
   <p class="arrow">人体动作 ──重定向──▶ 机器人关节轨迹</p>
-  <p class="note">机器人侧为 viser 交互式 3D 演示的录屏（非实时渲染，静态页无法承载 3D 引擎）。
-    完整交互版（可旋转视角、逐帧、切换轨迹）见下方「本地运行」。</p>
+  <p class="note">机器人侧由 viser 3D 演示<b>逐帧定格截取</b>后合成（非实时录屏，静态页无法承载 3D 引擎），
+    因此播放完全流畅，且与左侧原片逐帧对齐。完整交互版（可旋转视角、逐帧、切换轨迹）见下方「本地运行」。</p>
 </section>
 
 <!-- ============ 管线 ============ -->
