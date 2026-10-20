@@ -7,12 +7,14 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🤖</text></svg>">
 <!-- 共享演示页外壳（配色/页头/章节/页脚统一，单一事实源在主站 public/demo-shell.css） -->
 <link rel="stylesheet" href="https://ranpin.github.io/demo-shell.css">
+<!-- 明暗主题：同步加载，首屏绘制前应用已存主题，避免闪烁 -->
+<script src="https://ranpin.github.io/theme.js"></script>
 <style>
   /* 本页专属组件（描述徽章 / 双视频 / 管线 / 卡片），结构色一律引用外壳 --ds-* 变量 */
   .sf-badges{display:flex;gap:8px;flex-wrap:wrap;margin:.95rem 0 0}
   .sf-badge{font-size:12px;color:var(--ds-accent-strong);background:var(--ds-accent-soft);
     border:1px solid var(--ds-accent-ring);padding:3px 11px;border-radius:999px}
-  .sf-badge.red{color:#b42318;background:#fef2f2;border-color:#fecaca}
+  .sf-badge.red{color:var(--ds-danger);background:var(--ds-danger-soft);border-color:var(--ds-danger-ring)}
   .sec-note{color:var(--ds-muted);font-size:13.5px;margin:0 0 16px;line-height:1.6}
 
   /* ---- 双视频对照 ---- */
@@ -63,7 +65,7 @@
       <div class="ds-header__row">
         <a class="ds-home" href="https://ranpin.github.io/">← 返回主页</a>
         <h1>春晚舞蹈机器人</h1>
-        <span class="ds-badge">🤖 智能机器人 / 具身智能</span>
+        <button class="ds-theme-btn" type="button" onclick="toggleTheme()" aria-label="切换明暗主题"><span class="ds-theme-icon">🌙</span></button>
       </div>
       <p class="ds-header__sub">把一段春晚群舞视频，变成 9 台 Unitree G1 人形机器人同步起舞。复刻 Datawhale <code>every-embodied</code> 教程，全链路跑通：视频 → 人体姿态 → 动作重定向 → 机器人 3D 演示。</p>
       <div class="sf-badges">
