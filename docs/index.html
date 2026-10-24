@@ -43,22 +43,15 @@
     color:var(--ds-accent);font-size:18px;z-index:2}
   @media (max-width:720px){.stage:not(:last-child)::after{content:"↓";right:50%;top:auto;bottom:-15px;transform:translateX(50%)}}
 
-  /* ---- 工程要点 ---- */
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  @media (max-width:720px){.cols{grid-template-columns:1fr}}
+  /* ---- 主要结果卡片 ---- */
   .card{background:var(--ds-panel);border:1px solid var(--ds-border);border-radius:var(--ds-radius);padding:18px}
   .card h3{font-size:12px;font-weight:600;color:var(--ds-muted);margin:0 0 12px;text-transform:uppercase;letter-spacing:.8px}
-  ul.tight{margin:6px 0 0;padding-left:20px}
-  ul.tight li{margin:6px 0;font-size:13.5px}
   .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px}
   .kv dt{color:var(--ds-muted)}
   .kv dd{margin:0;color:var(--ds-text)}
   .note{font-size:12.5px;color:var(--ds-faint);margin-top:12px;line-height:1.55}
   code{background:var(--ds-code-bg);border:1px solid var(--ds-border);border-radius:5px;padding:1px 6px;
     font-family:var(--ds-mono);font-size:13px;color:var(--ds-accent-strong)}
-  pre{background:var(--ds-code-bg);border:1px solid var(--ds-border);border-radius:10px;padding:14px 16px;
-    overflow-x:auto;font-family:var(--ds-mono);font-size:13px;line-height:1.6}
-  pre code{background:none;border:none;padding:0;color:var(--ds-text)}
 </style>
 </head>
 <body>
@@ -99,12 +92,29 @@
       </div>
       <p class="arrow">人体动作 ──重定向──▶ 机器人关节轨迹</p>
       <p class="note">机器人侧由 viser 3D 演示<b>逐帧定格截取</b>后合成（非实时录屏，静态页无法承载 3D 引擎），
-        因此播放完全流畅，且与左侧原片逐帧对齐。完整交互版（可旋转视角、逐帧、切换轨迹）见下方「本地运行」。</p>
+        因此播放完全流畅，且与左侧原片逐帧对齐。完整交互版（可旋转视角、逐帧、切换轨迹）见仓库 README「跑法」。</p>
     </section>
 
-    <!-- ============ 管线 ============ -->
-    <section class="ds-section" id="pipeline">
-      <h2 class="ds-h2">技术管线</h2>
+    <!-- ============ 主要结果 ============ -->
+    <section class="ds-section" id="results">
+      <h2 class="ds-h2">主要结果</h2>
+      <p class="sec-note">全链路复刻跑通：春晚群舞视频 → 9 位舞者姿态 → 9 台 Unitree G1 机器人动作 → 交互式 3D 演示。关键数字如下（复现步骤、踩坑与诚实边界详见仓库 README）。</p>
+      <div class="card">
+        <h3>关键数字</h3>
+        <dl class="kv">
+          <dt>舞者 / 机器人</dt><dd>9 → 9</dd>
+          <dt>视频帧数</dt><dd>1180 帧 @ 30fps（≈39s）</dd>
+          <dt>机器人自由度</dt><dd>Unitree G1 · 29 DoF · 38 连杆</dd>
+          <dt>推理算力</dt><dd>Kaggle P100（CPU 无 NVIDIA 时的绕行）</dd>
+          <dt>全流程耗时</dt><dd>约 90–100 分钟</dd>
+          <dt>演示算力</dt><dd>Mac CPU（torch CPU + viser 0.2.23）</dd>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ============ 核心方法 ============ -->
+    <section class="ds-section" id="method">
+      <h2 class="ds-h2">核心方法</h2>
       <p class="sec-note">五阶段，重推理在 Kaggle GPU（P100，全流程约 90–100 分钟），3D 演示在 Mac CPU。</p>
       <div class="pipe">
         <div class="stage"><div class="n">01</div><div class="t">输入视频</div>
@@ -117,55 +127,6 @@
           <div class="d">9 条 robot_motion_track，逐帧 38 连杆位姿，30fps</div></div>
         <div class="stage"><div class="n">05</div><div class="t">viser 3D 演示</div>
           <div class="d">Mac 本地 CPU 实时渲染，浏览器交互（旋转 / 逐帧 / 多轨迹）</div></div>
-      </div>
-    </section>
-
-    <!-- ============ 工程要点 ============ -->
-    <section class="ds-section" id="engineering">
-      <h2 class="ds-h2">工程要点</h2>
-      <div class="cols">
-        <div class="card">
-          <h3>关键数字</h3>
-          <dl class="kv">
-            <dt>舞者 / 机器人</dt><dd>9 → 9</dd>
-            <dt>视频帧数</dt><dd>1180 帧 @ 30fps（≈39s）</dd>
-            <dt>机器人自由度</dt><dd>Unitree G1 · 29 DoF · 38 连杆</dd>
-            <dt>推理算力</dt><dd>Kaggle P100（CPU 无 NVIDIA 时的绕行）</dd>
-            <dt>全流程耗时</dt><dd>约 90–100 分钟</dd>
-            <dt>演示算力</dt><dd>Mac CPU（torch CPU + viser 0.2.23）</dd>
-          </dl>
-        </div>
-        <div class="card">
-          <h3>踩过的坑（复现关键）</h3>
-          <ul class="tight">
-            <li>环境必须用 PromptHMR 的 <b>PT2.4 分支</b>（py3.11 + torch2.4.0cu121 + 4 个 cp311 wheel），官方 <code>phmr.yml</code> 必失败</li>
-            <li>必须 checkout 基线 commit（PromptHMR <code>4f8915c</code> / GMR <code>069b4fd</code>）再打 3 个 patch</li>
-            <li>推理加 <code>--static-camera</code> 绕开权重仓缺失的 <code>droid.pth</code></li>
-            <li><code>cam_calib.py</code> 硬编码作者路径 → <code>ln -s &lt;PromptHMR根&gt; /code</code></li>
-            <li>Kaggle <code>/kaggle/working</code> 仅 20G → 权重与环境放 overlay 大盘</li>
-          </ul>
-        </div>
-      </div>
-      <p class="note">诚实边界：本项目是 Datawhale <code>every-embodied</code> 教程的<b>复刻</b>，核心算法（PromptHMR / GMR）来自上游；
-        本人的工作是把三仓 vendor 进一个可复现仓库、适配 Kaggle kernel、打 patch 修通环境、并做出 Mac 本地交互演示。详见仓库 <code>PATCHES.md</code> 与 Acknowledgement。</p>
-    </section>
-
-    <!-- ============ 本地运行 ============ -->
-    <section class="ds-section" id="run">
-      <h2 class="ds-h2">本地运行（交互式 3D）</h2>
-      <div class="card">
-<pre><code># 1) Kaggle GPU 推理产出动作文件（见仓库 kaggle/main.py，18 步全流程）
-#    产物：results.pkl + robot_motion_track_*.pkl + original.mp4
-
-# 2) Mac 本地起 viser 交互演示（CPU 即可，无需 GPU）
-conda create -n v2rviz python=3.11 -c conda-forge --override-channels
-conda activate v2rviz &amp;&amp; pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install viser==0.2.23 trimesh opencv-python joblib scipy
-
-# 3) 把 Kaggle 产物放进 video2robot/data/video_001/，然后：
-./run_demo.sh                 # 全部 9 条轨迹
-./run_demo.sh --tracks 1      # 只看第 1 台
-# 浏览器打开 http://localhost:8789</code></pre>
       </div>
     </section>
 

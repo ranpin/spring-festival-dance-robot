@@ -11,6 +11,8 @@
 
 **当前状态**：dance_1.mp4（春晚群舞 39s，1180 帧）已在 Kaggle P100 上完整跑通，9 个舞者全部重定向为 unitree_g1 机器人动作，Mac 上 viser 演示运行中。
 
+**工作边界（诚实边界）**：本项目是 Datawhale `every-embodied` 教程的**复刻**，核心算法（PromptHMR / GMR）均来自上游；本人的工作是把三仓 vendor 进一个可复现仓库、适配 Kaggle kernel、打 patch 修通环境（见下文「Baseline & Patches」「关键踩坑」），并新增 Mac 本地 viser 交互演示（`run_demo.sh`）。上游署名见文末 Acknowledgement。
+
 ---
 
 ## Repo 结构
