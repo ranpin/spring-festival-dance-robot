@@ -116,7 +116,7 @@
     <!-- ============ 核心方法 ============ -->
     <section class="ds-section" id="method">
       <h2 class="ds-h2">核心方法</h2>
-      <p class="sec-note">五阶段，重推理在 Kaggle GPU（P100，全流程约 90–100 分钟），3D 演示在 Mac CPU。</p>
+      <p class="sec-note"><b>输入</b>一段单目群舞视频（dance_1.mp4，1280×720，无深度/多视角）；<b>输出</b> 9 台 Unitree G1 的 29-DoF 关节轨迹（逐帧 38 连杆位姿，30fps）与 viser 3D 交互演示。五阶段，重推理在 Kaggle GPU（P100，全流程约 90–100 分钟），3D 演示在 Mac CPU。</p>
       <div class="pipe">
         <div class="stage"><div class="n">01</div><div class="t">输入视频</div>
           <div class="d">春晚群舞 dance_1.mp4，1180 帧 / 30fps，detectron2 检出 9 位舞者</div></div>
