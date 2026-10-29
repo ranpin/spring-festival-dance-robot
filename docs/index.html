@@ -29,7 +29,7 @@
   .vcard.in .vhead .tag{color:var(--ds-muted);background:var(--ds-code-bg);border:1px solid var(--ds-border)}
   .vcard.out .vhead .tag{color:var(--ds-accent-strong);background:var(--ds-accent-soft);border:1px solid var(--ds-accent-ring)}
   .vcard video{width:100%;display:block;background:#000;aspect-ratio:1000/760;object-fit:contain}
-  .vcard .vfoot{padding:9px 14px;font-size:12px;color:var(--ds-faint);border-top:1px solid var(--ds-border)}
+  .vcard .vfoot{padding:9px 14px;font-size:12px;color:var(--ds-faint);border-top:1px solid var(--ds-border);text-align:center}
   .ds-wrap p.arrow{text-align:center;text-indent:0;color:var(--ds-accent);font-size:13px;margin:14px 0 0;font-weight:600}
 
   /* ---- 管线 ---- */
@@ -82,12 +82,12 @@
         <div class="vcard in">
           <div class="vhead"><span class="tag">输入</span> 人类群舞原片</div>
           <video src="human_dance.mp4" autoplay loop muted playsinline controls></video>
-          <div class="vfoot">dance_1.mp4 · 1280×720 · 检出 9 位舞者</div>
+          <div class="vfoot">图 1 · 人类群舞原片（输入）—— dance_1.mp4 · 1280×720 · 检出 9 位舞者</div>
         </div>
         <div class="vcard out">
           <div class="vhead"><span class="tag">输出</span> 9 台 Unitree G1 机器人</div>
           <video src="robot_dance.mp4" autoplay loop muted playsinline controls></video>
-          <div class="vfoot">viser 3D 场景 · 720 帧 @30fps · SMPL-X → GMR → G1 29 DoF</div>
+          <div class="vfoot">图 2 · 9 台 G1 机器人重定向结果（输出）—— viser 3D 场景 · 720 帧 @30fps · SMPL-X → GMR → G1 29 DoF</div>
         </div>
       </div>
       <p class="arrow">人体动作 ──重定向──▶ 机器人关节轨迹</p>
@@ -98,6 +98,7 @@
     <!-- ============ 主要结果 ============ -->
     <section class="ds-section" id="results">
       <h2 class="ds-h2">主要结果</h2>
+      <p class="sec-note">测试数据：本项目为复刻项目、无公开基准——输入为春晚群舞视频 dance_1.mp4（1280×720，1180 帧 @30fps ≈ 39s，detectron2 检出 9 位舞者；演示与重定向结果取前 24s = 720 帧），评测为复刻保真度的定性对照（原片与机器人重定向结果逐帧并排，见图 1、图 2）。</p>
       <p class="sec-note">全链路复刻跑通：春晚群舞视频 → 9 位舞者姿态 → 9 台 Unitree G1 机器人动作 → 交互式 3D 演示。关键数字如下（复现步骤、踩坑与诚实边界详见仓库 README）。</p>
       <div class="card">
         <h3>关键数字</h3>
@@ -128,6 +129,7 @@
         <div class="stage"><div class="n">05</div><div class="t">viser 3D 演示</div>
           <div class="d">Mac 本地 CPU 实时渲染，浏览器交互（旋转 / 逐帧 / 多轨迹）</div></div>
       </div>
+      <p class="ds-figcap">图 3 · 五阶段管线：输入视频 → PromptHMR（SMPL-X）→ GMR 重定向（G1 29 DoF）→ 机器人动作 → viser 3D 演示</p>
     </section>
 
     <footer class="ds-footer">
