@@ -1,21 +1,59 @@
 # spring-festival-dance-robot
 
-> 🎬 **在线 Demo**：<https://ranpin.github.io/spring-festival-dance-robot/>
+> 复刻 [Datawhale `every-embodied` 教程](https://github.com/datawhalechina/every-embodied/blob/main/07-%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%93%8D%E4%BD%9C%E3%80%81%E8%BF%90%E5%8A%A8%E6%8E%A7%E5%88%B6/Locomotion/01%E6%98%A5%E6%99%9A%E8%88%9E%E8%B9%88%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%A4%8D%E5%88%BB.md)的「春晚舞蹈机器人」：一段春晚群舞视频，变成 9 台 Unitree G1 机器人的齐舞动作，Mac 上可交互 3D 演示。
 
+> 🎬 **在线 Demo**：<https://ranpin.github.io/spring-festival-dance-robot/> —— 「人类原舞 vs 9 台 G1 重定向」逐帧对齐双视频对照 + 五阶段管线与工程要点。
 
-复刻 [Datawhale `every-embodied` 教程](https://github.com/datawhalechina/every-embodied/blob/main/07-%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%93%8D%E4%BD%9C%E3%80%81%E8%BF%90%E5%8A%A8%E6%8E%A7%E5%88%B6/Locomotion/01%E6%98%A5%E6%99%9A%E8%88%9E%E8%B9%88%E6%9C%BA%E5%99%A8%E4%BA%BA%E5%A4%8D%E5%88%BB.md) 的「春晚舞蹈机器人」项目：
+## 核心结果
+
+- dance_1.mp4（春晚群舞，39s / 1180 帧 @30fps / 检出 9 位舞者）在 Kaggle GPU（P100，全流程 ~90–100 分钟）完整跑通：PromptHMR 提取 SMPL-X → GMR 重定向到 unitree_g1（29 DoF），9 个机器人动作全部产出。
+- Mac 本地 viser 交互式 3D 演示：纯 CPU、轻依赖（torch CPU + viser + trimesh + opencv），`run_demo.sh` 一条命令启动。
+- demo 页有「人类原舞 vs 9 台 G1 重定向」逐帧对齐的双视频对照（前 24s / 720 帧）。
+
+管线（五阶段，重推理在 Kaggle GPU、3D 演示在 Mac CPU）：
 
 ```
-文字/视频 → PromptHMR(SMPL-X) → GMR → unitree_g1 动作 → viser 交互式 3D
+视频 → PromptHMR(SMPL-X) → GMR 重定向(G1 29-DoF) → 机器人动作 → viser 交互式 3D
 ```
 
-**当前状态**：dance_1.mp4（春晚群舞 39s，1180 帧）已在 Kaggle P100 上完整跑通，9 个舞者全部重定向为 unitree_g1 机器人动作，Mac 上 viser 演示运行中。
+本仓做的工作：把三仓 vendor 进一个**可复现**仓库（冻结在已知好 commit + patch）、适配 18 步全流程的 Kaggle GPU kernel、新增 Mac 本地 viser 交互演示。核心算法（PromptHMR / GMR）来自上游（见「许可与致谢」）；工作边界、vendor 基线与复现踩坑见 [docs/NOTES.md](docs/NOTES.md)。
 
-**工作边界（诚实边界）**：本项目是 Datawhale `every-embodied` 教程的**复刻**，核心算法（PromptHMR / GMR）均来自上游；本人的工作是把三仓 vendor 进一个可复现仓库、适配 Kaggle kernel、打 patch 修通环境（见下文「Baseline & Patches」「关键踩坑」），并新增 Mac 本地 viser 交互演示（`run_demo.sh`）。上游署名见文末 Acknowledgement。
+## 快速开始
 
----
+### 1. Kaggle GPU 推理（产出动作文件）
 
-## Repo 结构
+```bash
+cd kaggle
+kaggle kernels push                              # 提交 kernel
+kaggle kernels status mamihlapinatapai/v2r-main  # 监控（P100 上 ~90–100 分钟）
+kaggle kernels output mamihlapinatapai/v2r-main -p /tmp/v2r_out
+ls /tmp/v2r_out/output/                          # results.pkl + robot_motion*.pkl + smplx*.npz + original.mp4
+```
+
+### 2. Mac 本地演示（viser 交互式 3D）
+
+```bash
+# 一次性准备 v2rviz conda env（torch CPU + viser + trimesh + opencv）
+# 注：run_demo.sh 内 PY 硬编码为 /Users/ranpin/miniconda3/envs/v2rviz/bin/python，其他机器请改成自己的环境路径
+conda create -y -n v2rviz python=3.11 -c conda-forge --override-channels
+conda run -n v2rviz python -m pip install torch numpy scipy joblib trimesh opencv-python viser==0.2.23
+
+# 把 Kaggle 产物放进 video2robot/data/video_001/
+mkdir -p video2robot/data/video_001
+cp /tmp/v2r_out/output/* video2robot/data/video_001/
+
+# 启动演示
+cd video2robot && ./run_demo.sh
+# 浏览器打开 http://localhost:8789；局域网: http://<Mac IP>:8789
+```
+
+`run_demo.sh` 用法：`./run_demo.sh`（全部 9 个机器人 + subsample 2）、`--tracks 1 2 3`（只看某几个）、`PORT=9000 ./run_demo.sh`（换端口）。
+
+产物（`results.pkl` / `robot_motion*.pkl` / `smplx*.npz`）**不入仓**——体积大且可重生，需要时跑 Kaggle kernel 自动产出。
+
+⚠️ 复现前必看：权重路径（HF ~14.8G、PromptHMR 硬编码 `/code` 软链）、`--static-camera` 绕开缺失的 `droid.pth`、`results.pkl` masks 瘦身（~11GB→~100MB）、Kaggle 磁盘配额等——见 [docs/NOTES.md](docs/NOTES.md)。
+
+## 仓库结构与文档导航
 
 ```
 spring-festival-dance-robot/
@@ -31,95 +69,19 @@ spring-festival-dance-robot/
 │   └── third_party/
 │       ├── GMR/                  # vendored from taeyoun811/GMR@069b4fd + gmr.patch；assets 裁到 unitree_g1
 │       └── PromptHMR/            # vendored from taeyoun811/PromptHMR@4f8915c + prompthmr.patch
-└── kaggle/                       # Kaggle GPU kernel（本仓库的核心）
-    ├── main.py                   # 18 步全流程：env → weights → extract_pose → convert_to_robot
-    ├── kernel-metadata.json      # Kaggle kernel 元数据（GPU + Internet）
-    └── probe.py                  # GPU/CUDA/conda 探针
+├── kaggle/                       # Kaggle GPU kernel（本仓库的核心）
+│   ├── main.py                   # 18 步全流程：env → weights → extract_pose → convert_to_robot
+│   ├── kernel-metadata.json      # Kaggle kernel 元数据（GPU + Internet）
+│   └── probe.py                  # GPU/CUDA/conda 探针
+├── docs/                         # 演示页（index.html + 双视频，Pages 部署）+ NOTES.md（工作边界/vendor 基线/踩坑）
+└── LICENSE                       # MIT
 ```
 
-产物（`results.pkl` / `robot_motion*.pkl` / `smplx*.npz`）**不入仓**——体积大且可重生。需要时跑 Kaggle kernel 自动产出，或从 SCM 存档拉取（见下文）。
+## 许可与致谢
 
----
-
-## 跑法
-
-### 1. Kaggle GPU 推理（产出动作文件）
-```bash
-cd kaggle
-kaggle kernels push                              # 提交 kernel
-kaggle kernels status mamihlapinatapai/v2r-main  # 监控（P100 上 ~1.5h）
-kaggle kernels output mamihlapinatapai/v2r-main -p /tmp/v2r_out
-ls /tmp/v2r_out/output/                          # results.pkl + robot_motion*.pkl + smplx*.npz + original.mp4
-```
-
-### 2. Mac 本地演示（viser 交互式 3D）
-```bash
-# 一次性准备 v2rviz conda env（torch CPU + viser + trimesh + opencv）
-# 注：run_demo.sh 内 PY 硬编码为 /Users/ranpin/miniconda3/envs/v2rviz/bin/python，其他机器请改成自己的环境路径
-conda create -y -n v2rviz python=3.11 -c conda-forge --override-channels
-conda run -n v2rviz python -m pip install torch numpy scipy joblib trimesh opencv-python viser==0.2.23
-
-# 把 Kaggle 产物放进 video2robot/data/video_001/
-mkdir -p video2robot/data/video_001
-cp /tmp/v2r_out/output/* video2robot/data/video_001/
-
-# 启动演示
-cd video2robot && ./run_demo.sh
-# 浏览器打开 http://localhost:8789
-# 局域网: http://<Mac IP>:8789
-```
-
-`run_demo.sh` 用法：
-```bash
-./run_demo.sh                          # 全部 9 个机器人 + subsample 2
-./run_demo.sh --tracks 1 2 3           # 只看某几个
-PORT=9000 ./run_demo.sh                # 换端口
-```
-
----
-
-## Baseline & Patches（vendor 状态）
-
-| 源 | commit/状态 | patches |
-|---|---|---|
-| `video2robot/` | datawhalechina/every-embodied main HEAD | 上游 `main.patch` 已合并到 HEAD |
-| `third_party/GMR/` | `taeyoun811/GMR@069b4fd` | `patches/gmr.patch` 已应用（添加 `--once/--max_seconds`）|
-| `third_party/PromptHMR/` | `taeyoun811/PromptHMR@4f8915c` | `patches/prompthmr.patch` 已应用（sam2 import / droidcalib / `.type→.scalar_type` / 去 SMPL 依赖）|
-
-升级三方源后，patches 可能需要重新 rebase；本仓库冻结在已知好状态以便迭代。
-
----
-
-## 关键踩坑（复现/迭代时必看）
-
-### Kaggle 环境
-- Kaggle **无 conda** → 装 miniconda 到大 overlay（`/root/...` 或 `/tmp/...`），别用 `/kaggle/working`（仅 20GB）。
-- 新版 conda 建 env 前要接受 Anaconda ToS → 用 `-c conda-forge --override-channels` 绕开。
-- Kaggle GPU 是 **P100/T4**（不是 4090），但 cp311 wheels 在 P100(sm_60) 上验证可用，T4(sm_75) 也覆盖。
-- `/kaggle/working` 是产物出口（20GB 上限），weights/env/repos 都放大 overlay。
-
-### 权重路径
-- HF `Datawhale/spring-festival-wushu-robot-replication-model`（~14.8G：pretrain + body_models + examples + wheels，**包含春晚舞蹈视频** `examples/dance_1.mp4`）。
-- HF weights 的 `data/` 软链到 `third_party/PromptHMR/data/` 即可（config.py 已约定路径）。
-- PromptHMR **硬编码 `/code/data/pretrain/camcalib_sa_biased_l2.ckpt`** → 必须 `ln -sfn $PH /code`（kernel STEP 10 已处理）。
-- HF wheels（detectron2 / lietorch / sam2 / droid_backends_intr）是 **cp311 linux_x86_64** → phmr env 必须 **Python 3.11**，不能用上游 yml 的 py3.10（wheels 里另有 cp38-abi3 的 gloss，kernel 未安装）。
-- `yolo11x.pt` 不必有，检测器硬编码 `detectron2`（权重在 `sam2_ckpts/keypoint_rcnn_5ad38f.pkl`）。
-
-### Pipeline
-- `--static-camera` 跳过 DROID-SLAM → **绕开缺失的 `droid.pth`**。春晚舞台机位基本固定，static 完全 OK。
-- `extract_pose` 后 `results.pkl` 含 masks（1180 帧 × N 人 × 896² bool）会膨胀到 ~11GB → kernel STEP 18 自动 joblib 瘦身（drop masks，保 people + camera_world），缩到 ~100MB。
-- 1180 帧在 P100 上 extract_pose ~1h10m，convert_to_robot ~5m。整轮 ~1.5h。
-
-### Mac 演示
-- robot_viser.py **依赖很轻**：torch CPU + viser + trimesh + opencv + joblib + scipy + numpy。
-- 不需要 detectron2/sam2/MuJoCo（它自己用纯 torch 实现 MJCF 运动学解析器）。
-- GMR 网格资产挂在 `third_party/GMR/assets/unitree_g1/`（vendor 时已裁掉其他机器人，只留这一个）。
-
----
-
-## Acknowledgement
+MIT——见 [`LICENSE`](LICENSE)。
 
 - Datawhale [`every-embodied`](https://github.com/datawhalechina/every-embodied) — 教程源文档
 - [`taeyoun811/PromptHMR`](https://github.com/taeyoun811/PromptHMR) — SMPL-X 人体姿态提取
 - [`taeyoun811/GMR`](https://github.com/taeyoun811/GMR) — 通用动作重定向
-- HF: [`Datawhale/spring-festival-wushu-robot-replication-model`](https://huggingface.co/Datawhale/spring-festival-wushu-robot-replication-model) — 权重 + cp311 wheels
+- HF: [`Datawhale/spring-festival-wushu-robot-replication-model`](https://huggingface.co/Datawhale/spring-festival-wushu-robot-replication-model) — 权重 + cp311 wheels（含春晚舞蹈视频 `dance_1.mp4`）
