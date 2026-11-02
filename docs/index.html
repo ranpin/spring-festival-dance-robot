@@ -112,45 +112,113 @@
       <h2 class="ds-h2">核心方法</h2>
       <p class="sec-note"><b>输入</b>一段单目群舞视频（dance_1.mp4，1280×720，无深度/多视角）；<b>输出</b> 9 台 Unitree G1 的 29-DoF 关节轨迹（逐帧 38 连杆位姿，30fps）与 viser 3D 交互演示。五阶段，重推理在 Kaggle GPU（P100，全流程约 90–100 分钟），3D 演示在 Mac CPU。</p>
       <div class="ds-dgwrap">
-        <svg class="ds-dg" viewBox="0 0 986 160" role="img" aria-label="五阶段管线：01 输入视频 → 02 PromptHMR → 03 GMR 重定向 → 04 机器人动作（02–04 在 Kaggle P100 上跑，全流程约 90–100 分钟）→ 05 viser 3D 演示（Mac CPU）">
+        <svg class="ds-dg" viewBox="0 0 986 160" role="img" aria-label="五阶段管线（动态图）：数据包沿 01 输入视频 → 02 PromptHMR → 03 GMR 重定向 → 04 机器人动作 → 05 viser 3D 演示 穿行，经过的阶段逐个脉冲亮起（02–04 在 Kaggle P100 上跑，全流程约 90–100 分钟；05 在 Mac CPU）">
           <defs>
             <marker id="sfd-dg-arr" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
               <polygon points="0 0, 9 3.5, 0 7" fill="var(--ds-faint)"/>
             </marker>
+            <!-- 视觉层·渐变立体盒：两 stop 属性值均为纯色回退，外壳 CSS 把末 stop 升级为 color-mix 加深（随主题翻转） -->
+            <linearGradient id="sfd-g-accent" class="dg-grad" data-c="accent" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--ds-accent-soft)"/>
+              <stop offset="1" stop-color="var(--ds-accent-soft)"/>
+            </linearGradient>
+            <linearGradient id="sfd-g-alt" class="dg-grad" data-c="alt" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--ds-alt-soft)"/>
+              <stop offset="1" stop-color="var(--ds-alt-soft)"/>
+            </linearGradient>
+            <linearGradient id="sfd-g-neutral" class="dg-grad" data-c="neutral" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--ds-code-bg)"/>
+              <stop offset="1" stop-color="var(--ds-code-bg)"/>
+            </linearGradient>
+            <linearGradient id="sfd-g-ok" class="dg-grad" data-c="ok" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="var(--ds-ok-soft)"/>
+              <stop offset="1" stop-color="var(--ds-ok-soft)"/>
+            </linearGradient>
+            <!-- 图标 symbol：复制自 demo-page-iteration skill assets/dg-icons.svg（外部 use 引用 Chrome/Safari 静默失败，必须内联） -->
+            <symbol id="ico-video" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></symbol>
+            <symbol id="ico-user" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.2"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></symbol>
+            <symbol id="ico-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M15.5 5H10a4 4 0 0 0 0 8h4a4 4 0 0 1 0 8H8.5"/></symbol>
+            <symbol id="ico-robot" viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="2.5"/><circle cx="12" cy="3.5" r="1.5"/><path d="M12 5v3"/><circle cx="9.5" cy="13" r="1.2"/><circle cx="14.5" cy="13" r="1.2"/><path d="M9.5 16.5h5"/></symbol>
+            <symbol id="ico-cube" viewBox="0 0 24 24"><path d="M12 2.5l8.5 5v9l-8.5 5-8.5-5v-9z"/><path d="M12 12.5l8.5-5M12 12.5v9M12 12.5L3.5 7.5"/></symbol>
           </defs>
           <!-- 硬件区域边界：Kaggle P100 包住 02–04，Mac CPU 包住 05 -->
           <rect class="dg-region hw" x="208" y="24" width="540" height="114" rx="10"/>
           <rect class="dg-region hw" x="776" y="24" width="186" height="114" rx="10"/>
-          <!-- 连线 -->
-          <line class="dg-edge" x1="191" y1="91" x2="219" y2="91" marker-end="url(#sfd-dg-arr)"/>
-          <line class="dg-edge" x1="383" y1="91" x2="411" y2="91" marker-end="url(#sfd-dg-arr)"/>
-          <line class="dg-edge" x1="563" y1="91" x2="591" y2="91" marker-end="url(#sfd-dg-arr)"/>
-          <line class="dg-edge" x1="737" y1="91" x2="787" y2="91" marker-end="url(#sfd-dg-arr)"/>
-          <!-- 盒子：蓝=输入 · 紫=模型推理 · 中性=产物 · 绿=输出演示 -->
-          <rect x="24" y="56" width="164" height="70" rx="8" fill="var(--ds-accent-soft)" stroke="var(--ds-accent)" stroke-width="1.4"/>
-          <rect x="222" y="56" width="158" height="70" rx="8" fill="var(--ds-alt-soft)" stroke="var(--ds-alt)" stroke-width="1.4"/>
-          <rect x="414" y="56" width="146" height="70" rx="8" fill="var(--ds-alt-soft)" stroke="var(--ds-alt)" stroke-width="1.4"/>
-          <rect x="594" y="56" width="140" height="70" rx="8" fill="var(--ds-code-bg)" stroke="var(--ds-faint)" stroke-width="1.4"/>
-          <rect x="790" y="56" width="158" height="70" rx="8" fill="var(--ds-ok-soft)" stroke="var(--ds-ok)" stroke-width="1.4"/>
-          <!-- 文字：区域标签 → 盒名 → 盒内副标签 -->
           <text class="dg-tag" x="478" y="42" text-anchor="middle" fill="var(--ds-warn)">Kaggle P100 · 全流程约 90–100 分钟</text>
           <text class="dg-tag" x="869" y="42" text-anchor="middle" fill="var(--ds-warn)">Mac CPU</text>
-          <text class="dg-name" x="106" y="79" text-anchor="middle">01 输入视频</text>
-          <text class="dg-sub" x="106" y="95" text-anchor="middle">dance_1.mp4 · 1180 帧</text>
-          <text class="dg-sub" x="106" y="109" text-anchor="middle">detectron2 检出 9 位舞者</text>
-          <text class="dg-name" x="301" y="79" text-anchor="middle">02 PromptHMR</text>
-          <text class="dg-sub" x="301" y="95" text-anchor="middle">单目 → SMPL-X 姿态</text>
-          <text class="dg-sub" x="301" y="109" text-anchor="middle">--static-camera</text>
-          <text class="dg-name" x="487" y="79" text-anchor="middle">03 GMR 重定向</text>
-          <text class="dg-sub" x="487" y="95" text-anchor="middle">SMPL-X → G1</text>
-          <text class="dg-sub" x="487" y="109" text-anchor="middle">29 DoF 关节轨迹</text>
-          <text class="dg-name" x="664" y="79" text-anchor="middle">04 机器人动作</text>
-          <text class="dg-sub" x="664" y="95" text-anchor="middle">9 条轨迹</text>
-          <text class="dg-sub" x="664" y="109" text-anchor="middle">38 连杆 · 30fps</text>
-          <text class="dg-name" x="869" y="79" text-anchor="middle">05 viser 3D 演示</text>
-          <text class="dg-sub" x="869" y="95" text-anchor="middle">浏览器交互</text>
-          <text class="dg-sub" x="869" y="109" text-anchor="middle">旋转/逐帧/多轨迹</text>
+          <!-- 连线（data-from/to 供悬停聚焦-上下文；层序：连线 → 脉冲环 → 数据包 → 节点组） -->
+          <line class="dg-edge" data-from="sfd-input" data-to="sfd-prompt" x1="191" y1="91" x2="219" y2="91" marker-end="url(#sfd-dg-arr)"/>
+          <line class="dg-edge" data-from="sfd-prompt" data-to="sfd-gmr" x1="383" y1="91" x2="411" y2="91" marker-end="url(#sfd-dg-arr)"/>
+          <line class="dg-edge" data-from="sfd-gmr" data-to="sfd-motion" x1="563" y1="91" x2="591" y2="91" marker-end="url(#sfd-dg-arr)"/>
+          <line class="dg-edge" data-from="sfd-motion" data-to="sfd-viser" x1="737" y1="91" x2="787" y2="91" marker-end="url(#sfd-dg-arr)"/>
+          <!-- 脉冲环：数据包经过时亮起（与数据包同 6s 周期，keyTimes 按到达时刻开槽） -->
+          <rect class="dg-ring" x="21" y="53" width="170" height="76" rx="11" stroke="var(--ds-accent)" opacity="0">
+            <animate attributeName="opacity" values="0;.85;0;0" keyTimes="0;.05;.2;1" dur="6s" begin="indefinite" repeatCount="indefinite"/>
+          </rect>
+          <rect class="dg-ring" x="219" y="53" width="164" height="76" rx="11" stroke="var(--ds-alt)" opacity="0">
+            <animate attributeName="opacity" values="0;0;.85;0;0" keyTimes="0;.246;.296;.446;1" dur="6s" begin="indefinite" repeatCount="indefinite"/>
+          </rect>
+          <rect class="dg-ring" x="411" y="53" width="152" height="76" rx="11" stroke="var(--ds-alt)" opacity="0">
+            <animate attributeName="opacity" values="0;0;.85;0;0" keyTimes="0;.489;.539;.689;1" dur="6s" begin="indefinite" repeatCount="indefinite"/>
+          </rect>
+          <rect class="dg-ring" x="591" y="53" width="146" height="76" rx="11" stroke="var(--ds-faint)" opacity="0">
+            <animate attributeName="opacity" values="0;0;.85;0;0" keyTimes="0;.721;.771;.921;1" dur="6s" begin="indefinite" repeatCount="indefinite"/>
+          </rect>
+          <rect class="dg-ring" x="787" y="53" width="164" height="76" rx="11" stroke="var(--ds-ok)" opacity="0">
+            <animate attributeName="opacity" values="0;0;.85;0" keyTimes="0;.93;.97;1" dur="6s" begin="indefinite" repeatCount="indefinite"/>
+          </rect>
+          <!-- 数据包：主链单包 6s 匀速穿行 01→05（画在盒子下层，盒间空隙可见 = 数据逐环节穿行，
+               首尾折返点在首末盒中心、被盒体遮挡） -->
+          <g transform="translate(106,91)"><g class="dg-packet-g" opacity="0">
+            <circle r="8" fill="var(--ds-accent)" opacity=".22"/>
+            <circle r="3.2" fill="var(--ds-accent)"/>
+            <animateMotion dur="6s" begin="indefinite" repeatCount="indefinite" calcMode="linear" path="M0,0 H763"/>
+            <animate attributeName="opacity" from="1" to="1" dur="6s" begin="indefinite" repeatCount="indefinite"/>
+          </g></g>
+          <!-- 五阶段盒：g.dg-node（data-id 供悬停聚焦、--dg-i 入场序号、--dg-glow 悬停光效色）；蓝=输入 · 紫=模型推理 · 中性=产物 · 绿=输出演示 -->
+          <g class="dg-node" data-id="sfd-input" style="--dg-glow:var(--ds-accent);--dg-i:0">
+            <rect x="24" y="56" width="164" height="70" rx="8" fill="url(#sfd-g-accent)" stroke="var(--ds-accent)" stroke-width="1.4"/>
+            <use class="dg-ico" href="#ico-video" x="33" y="65" width="14" height="14" style="color:var(--ds-accent)"/>
+            <text class="dg-name" x="106" y="79" text-anchor="middle">01 输入视频</text>
+            <text class="dg-sub" x="106" y="95" text-anchor="middle">dance_1.mp4 · 1180 帧</text>
+            <text class="dg-sub" x="106" y="109" text-anchor="middle">detectron2 检出 9 位舞者</text>
+          </g>
+          <g class="dg-node" data-id="sfd-prompt" style="--dg-glow:var(--ds-alt);--dg-i:1">
+            <rect x="222" y="56" width="158" height="70" rx="8" fill="url(#sfd-g-alt)" stroke="var(--ds-alt)" stroke-width="1.4"/>
+            <use class="dg-ico" href="#ico-user" x="231" y="65" width="14" height="14" style="color:var(--ds-alt)"/>
+            <text class="dg-name" x="301" y="79" text-anchor="middle">02 PromptHMR</text>
+            <text class="dg-sub" x="301" y="95" text-anchor="middle">单目 → SMPL-X 姿态</text>
+            <text class="dg-sub" x="301" y="109" text-anchor="middle">--static-camera</text>
+          </g>
+          <g class="dg-node" data-id="sfd-gmr" style="--dg-glow:var(--ds-alt);--dg-i:2">
+            <rect x="414" y="56" width="146" height="70" rx="8" fill="url(#sfd-g-alt)" stroke="var(--ds-alt)" stroke-width="1.4"/>
+            <use class="dg-ico" href="#ico-route" x="423" y="65" width="14" height="14" style="color:var(--ds-alt)"/>
+            <text class="dg-name" x="487" y="79" text-anchor="middle">03 GMR 重定向</text>
+            <text class="dg-sub" x="487" y="95" text-anchor="middle">SMPL-X → G1</text>
+            <text class="dg-sub" x="487" y="109" text-anchor="middle">29 DoF 关节轨迹</text>
+          </g>
+          <g class="dg-node" data-id="sfd-motion" style="--dg-glow:var(--ds-muted);--dg-i:3">
+            <rect x="594" y="56" width="140" height="70" rx="8" fill="url(#sfd-g-neutral)" stroke="var(--ds-faint)" stroke-width="1.4"/>
+            <use class="dg-ico" href="#ico-robot" x="603" y="65" width="14" height="14" style="color:var(--ds-muted)"/>
+            <text class="dg-name" x="664" y="79" text-anchor="middle">04 机器人动作</text>
+            <text class="dg-sub" x="664" y="95" text-anchor="middle">9 条轨迹</text>
+            <text class="dg-sub" x="664" y="109" text-anchor="middle">38 连杆 · 30fps</text>
+          </g>
+          <g class="dg-node" data-id="sfd-viser" style="--dg-glow:var(--ds-ok);--dg-i:4">
+            <rect x="790" y="56" width="158" height="70" rx="8" fill="url(#sfd-g-ok)" stroke="var(--ds-ok)" stroke-width="1.4"/>
+            <use class="dg-ico" href="#ico-cube" x="799" y="65" width="14" height="14" style="color:var(--ds-ok)"/>
+            <text class="dg-name" x="869" y="79" text-anchor="middle">05 viser 3D 演示</text>
+            <text class="dg-sub" x="869" y="95" text-anchor="middle">浏览器交互</text>
+            <text class="dg-sub" x="869" y="109" text-anchor="middle">旋转/逐帧/多轨迹</text>
+          </g>
         </svg>
+        <div class="dg-legend">
+          <span style="--c:var(--ds-accent)"><i></i>输入数据</span>
+          <span style="--c:var(--ds-alt)"><i></i>模型推理</span>
+          <span style="--c:var(--ds-faint)"><i></i>动作产物</span>
+          <span style="--c:var(--ds-warn)"><i></i>硬件部署</span>
+          <span style="--c:var(--ds-ok)"><i></i>输出演示</span>
+        </div>
       </div>
       <p class="ds-figcap">图 3 · 五阶段管线：输入视频 → PromptHMR（SMPL-X）→ GMR 重定向（G1 29 DoF）→ 机器人动作 → viser 3D 演示</p>
       <p class="sec-note">阶段细节：PromptHMR 从单目视频重建 SMPL-X 人体网格与姿态序列（<code>--static-camera</code> 绕开缺失的 SLAM 权重）；GMR 重定向输出 <code>root_pos / root_rot / dof_pos</code>；机器人动作为 9 条 <code>robot_motion_track</code>；viser 在 Mac 本地 CPU 实时渲染。</p>
