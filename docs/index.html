@@ -110,7 +110,6 @@
     <!-- ============ 核心方法 ============ -->
     <section class="ds-section" id="method">
       <h2 class="ds-h2">核心方法</h2>
-      <p class="sec-note"><b>输入</b>一段单目群舞视频（dance_1.mp4，1280×720，无深度/多视角）；<b>输出</b> 9 台 Unitree G1 的 29-DoF 关节轨迹（逐帧 38 连杆位姿，30fps）与 viser 3D 交互演示。五阶段，重推理在 Kaggle GPU（P100，全流程约 90–100 分钟），3D 演示在 Mac CPU。</p>
       <div class="ds-dgwrap">
         <svg class="ds-dg" viewBox="0 0 986 160" role="img" aria-label="五阶段管线（动态图）：数据包沿 01 输入视频 → 02 PromptHMR → 03 GMR 重定向 → 04 机器人动作 → 05 viser 3D 演示 穿行，经过的阶段逐个脉冲亮起（02–04 在 Kaggle P100 上跑，全流程约 90–100 分钟；05 在 Mac CPU）">
           <defs>
@@ -221,6 +220,7 @@
         </div>
       </div>
       <p class="ds-figcap">图 3 · 五阶段管线：输入视频 → PromptHMR（SMPL-X）→ GMR 重定向（G1 29 DoF）→ 机器人动作 → viser 3D 演示</p>
+      <p class="sec-note"><b>输入</b>一段单目群舞视频（dance_1.mp4，1280×720，无深度/多视角）；<b>输出</b> 9 台 Unitree G1 的 29-DoF 关节轨迹（逐帧 38 连杆位姿，30fps）与 viser 3D 交互演示。五阶段，重推理在 Kaggle GPU（P100，全流程约 90–100 分钟），3D 演示在 Mac CPU。</p>
       <p class="sec-note">阶段细节：PromptHMR 从单目视频重建 SMPL-X 人体网格与姿态序列（<code>--static-camera</code> 绕开缺失的 SLAM 权重）；GMR 重定向输出 <code>root_pos / root_rot / dof_pos</code>；机器人动作为 9 条 <code>robot_motion_track</code>；viser 在 Mac 本地 CPU 实时渲染。</p>
     </section>
 
