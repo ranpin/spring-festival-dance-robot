@@ -82,7 +82,10 @@ class Pipeline:
                 det_thresh=self.cfg.det_thresh,
                 score_thresh=self.cfg.det_score_thresh,
                 height_thresh=self.cfg.det_height_thresh,
-                bbox_interp=self.cfg.bbox_interp
+                bbox_interp=self.cfg.bbox_interp,
+                nms_oks_thresh=self.cfg.get('nms_oks_thresh', 0.5),
+                keyframe_search=self.cfg.get('keyframe_search', False),
+                keyframe_stride=self.cfg.get('keyframe_stride', 10)
             )
             
         self.results['masks'] = masks

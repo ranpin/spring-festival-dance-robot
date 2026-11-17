@@ -14,6 +14,12 @@ use_spec_calib: true
 det_thresh: 0.1
 det_score_thresh: 0.1
 det_height_thresh: 0.3
+# Group-dance fix: raise NMS OKS so overlapping dancers are not merged as duplicates,
+# and pick the keyframe with the most people / most spread formation instead of the
+# first detectable frame (which permanently fixes the track count).
+nms_oks_thresh: 0.7
+keyframe_search: true
+keyframe_stride: 10
 save_vos: false
 save_depth: false
 

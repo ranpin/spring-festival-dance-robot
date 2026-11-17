@@ -106,7 +106,8 @@ def detect_track(images, savedir=None, visualization=False,
 def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_type, 
                              detector_type='detectron2', filter_ng_points=False, kp_thres=0.1, 
                              num_max_people=10, height_thresh=0.3, score_thresh=0.4, det_thresh=0.5, 
-                             bbox_interp=False):
+                             bbox_interp=False, nms_oks_thresh=0.5, keyframe_search=False,
+                             keyframe_stride=10):
     from torch.utils.data import DataLoader
     from torchvision.models.segmentation import DeepLabV3_ResNet50_Weights
     from detectron2.config import get_cfg
@@ -179,7 +180,14 @@ def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_typ
         kp_thres = 0.1
      
     start_frame = -1
-    for i in range(len(images)):
+    # Group-dance fix: the track count is fixed by whichever frame initializes SAM2.
+    # The original code broke at the FIRST frame with detections, so a dancer who
+    # overlaps another (NMS OKS) or crouches (height filter) in that one frame is
+    # permanently dropped. Instead scan candidate frames and pick the one with the
+    # most people, tie-broken by the most spread formation (lowest max pairwise OKS).
+    best_cand = None  # (num_people, -max_oks, frame_idx, boxes, scores, keypoints, combined)
+    frame_iter = range(0, len(images), keyframe_stride) if keyframe_search else range(len(images))
+    for i in frame_iter:
         if isinstance(images[i], str):
             img_cv2 = cv2.imread(images[i])
         elif isinstance(images[i], np.ndarray):
@@ -191,53 +199,51 @@ def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_typ
             scores = det_out['instances'].scores.cpu().numpy()
             boxes = det_out['instances'].pred_boxes.tensor.cpu().numpy()
 
-        if len(scores) > 0:
-            keep = nms_oks(keypoints.transpose(0, 2, 1), boxes, 0.5)
-            keypoints = keypoints[keep]
-            scores = scores[keep]
-            boxes = boxes[keep]
-
-            conf = scores > det_thresh
-            keypoints = keypoints[conf]
-            scores = scores[conf]
-            boxes = boxes[conf]
-            
-            # Calculate areas of bounding boxes
-            areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-            bbox_height = boxes[:, 3] - boxes[:, 1]
-            
-            # Normalize areas and scores
-            normalized_areas = areas / np.max(areas)
-            normalized_scores = scores / np.max(scores)
-            
-            # Combine area and score with equal weight
-            combined_score = 0.5 * normalized_areas + 0.5 * normalized_scores
-            print(f"Combined score: {combined_score}")
-            best_idxs = [x for x in np.argsort(combined_score)[::-1] if combined_score[x] > score_thresh]
-            
-            if len(best_idxs) > 1:
-                largest_person_idx = np.argmax(bbox_height)
-                largest_person_height = bbox_height[largest_person_idx]
-                print(f'number of people before filtering (height < {height_thresh} max): {len(best_idxs)}')
-
-                best_idxs = [x for x in best_idxs if bbox_height[x] > largest_person_height * height_thresh]
-                print(f'number of people after filtering (height < {height_thresh} max): {len(best_idxs)}')
-
-            # Get the details of the best person
-            best_boxes = boxes[best_idxs]
-            best_scores = scores[best_idxs]
-            best_keypoints = keypoints[best_idxs]
-            best_combined_scores = combined_score[best_idxs]
-            start_frame = i
-            print(f"Best person scores: {best_scores}")
-            print(f"Best person combined scores: {best_combined_scores}")
-            break
-        else:
-            print("No persons detected in the image.")
+        if len(scores) == 0:
             continue
-    
-    if start_frame == -1:
+        keep = nms_oks(keypoints.transpose(0, 2, 1), boxes, nms_oks_thresh)
+        keypoints = keypoints[keep]
+        scores = scores[keep]
+        boxes = boxes[keep]
+
+        conf = scores > det_thresh
+        keypoints = keypoints[conf]
+        scores = scores[conf]
+        boxes = boxes[conf]
+        if len(scores) == 0:
+            continue
+
+        areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+        bbox_height = boxes[:, 3] - boxes[:, 1]
+        normalized_areas = areas / np.max(areas)
+        normalized_scores = scores / np.max(scores)
+        combined_score = 0.5 * normalized_areas + 0.5 * normalized_scores
+        best_idxs = [x for x in np.argsort(combined_score)[::-1] if combined_score[x] > score_thresh]
+
+        if len(best_idxs) > 1:
+            largest_person_height = bbox_height[np.argmax(bbox_height)]
+            best_idxs = [x for x in best_idxs if bbox_height[x] > largest_person_height * height_thresh]
+
+        if len(best_idxs) == 0:
+            continue
+        bb = boxes[best_idxs]
+        bs = scores[best_idxs]
+        bk = keypoints[best_idxs]
+        bc = combined_score[best_idxs]
+        spread = _max_pairwise_oks(bk, bb)
+        cand = (len(best_idxs), -spread, i, bb, bs, bk, bc)
+        if best_cand is None or (cand[0], cand[1]) > (best_cand[0], best_cand[1]):
+            best_cand = cand
+            print(f"[keyframe] frame {i}: {len(best_idxs)} people, max OKS={spread:.3f} (best so far)")
+        if not keyframe_search:
+            break
+
+    if best_cand is None:
         raise ValueError("No persons detected in any of the images.")
+    _, _, start_frame, best_boxes, best_scores, best_keypoints, best_combined_scores = best_cand
+    print(f"[keyframe] selected frame {start_frame}: {len(best_boxes)} people")
+    print(f"Best person scores: {best_scores}")
+    print(f"Best person combined scores: {best_combined_scores}")
             
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
         if isinstance(images[0], str):
@@ -450,6 +456,25 @@ def batched_mask_to_box(masks: torch.Tensor) -> torch.Tensor:
         out = out[0]
 
     return out
+
+
+def _max_pairwise_oks(keypoints, boxes):
+    """Max pairwise OKS among kept detections (keypoints N×K×3, boxes N×4).
+
+    Lower means the formation is more spread out; used to pick a keyframe where no
+    two dancers overlap enough for NMS to mistake them for one person.
+    """
+    n = len(boxes)
+    if n < 2:
+        return 0.0
+    kps = keypoints.transpose(0, 2, 1)  # N×3×K
+    m = 0.0
+    for i in range(n):
+        for j in range(i + 1, n):
+            o = float(compute_oks(kps[i], boxes[i], kps[j:j + 1], boxes[j:j + 1])[0])
+            if o > m:
+                m = o
+    return m
 
 
 def nms_oks(kp_predictions, rois, thresh):
