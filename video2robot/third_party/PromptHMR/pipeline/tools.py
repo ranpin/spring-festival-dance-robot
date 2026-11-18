@@ -107,7 +107,7 @@ def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_typ
                              detector_type='detectron2', filter_ng_points=False, kp_thres=0.1, 
                              num_max_people=10, height_thresh=0.3, score_thresh=0.4, det_thresh=0.5, 
                              bbox_interp=False, nms_oks_thresh=0.5, keyframe_search=False,
-                             keyframe_stride=10):
+                             keyframe_stride=10, keyframe_search_frac=0.15):
     from torch.utils.data import DataLoader
     from torchvision.models.segmentation import DeepLabV3_ResNet50_Weights
     from detectron2.config import get_cfg
@@ -186,7 +186,15 @@ def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_typ
     # permanently dropped. Instead scan candidate frames and pick the one with the
     # most people, tie-broken by the most spread formation (lowest max pairwise OKS).
     best_cand = None  # (num_people, -max_oks, frame_idx, boxes, scores, keypoints, combined)
-    frame_iter = range(0, len(images), keyframe_stride) if keyframe_search else range(len(images))
+    if keyframe_search:
+        # SAM2 propagates forward only from the keyframe, so it must be early to cover
+        # the whole video. Restrict the search to the first fraction of frames; among
+        # those pick most people then most spread. A late keyframe with extra background
+        # people would otherwise win on count and leave only a few propagated frames.
+        kf_end = max(keyframe_stride + 1, int(len(images) * keyframe_search_frac))
+        frame_iter = range(0, kf_end, keyframe_stride)
+    else:
+        frame_iter = range(len(images))
     for i in frame_iter:
         if isinstance(images[i], str):
             img_cv2 = cv2.imread(images[i])
