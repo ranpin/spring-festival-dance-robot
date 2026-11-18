@@ -21,6 +21,11 @@ nms_oks_thresh: 0.7
 keyframe_search: true
 keyframe_stride: 10
 keyframe_search_frac: 0.15
+# Multi-keyframe re-acquisition: re-detect + re-condition dancers who exit and re-enter
+# the frame (SAM2 forward-only propagation otherwise loses them permanently).
+reacquire: true
+reacq_stride: 50
+reacq_iou: 0.3
 save_vos: false
 save_depth: false
 

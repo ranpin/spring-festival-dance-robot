@@ -103,11 +103,45 @@ def detect_track(images, savedir=None, visualization=False,
     return tracks
 
 
+def _box_iou(a, b):
+    x1, y1 = max(a[0], b[0]), max(a[1], b[1])
+    x2, y2 = min(a[2], b[2]), min(a[3], b[3])
+    inter = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    ua = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / ua if ua > 0 else 0.0
+
+
+def _detect_people_at(detector, images, i, nms_oks_thresh, det_thresh, score_thresh, height_thresh):
+    """Run the person detector + same filtering as keyframe selection at frame i."""
+    img_cv2 = cv2.imread(images[i]) if isinstance(images[i], str) else images[i][..., ::-1]
+    det_out = detector(img_cv2)
+    keypoints = det_out['instances'].pred_keypoints.cpu().numpy()
+    scores = det_out['instances'].scores.cpu().numpy()
+    boxes = det_out['instances'].pred_boxes.tensor.cpu().numpy()
+    if len(scores) == 0:
+        return np.zeros((0, 4)), np.zeros((0, keypoints.shape[1] if keypoints.ndim == 3 else 17, 3))
+    keep = nms_oks(keypoints.transpose(0, 2, 1), boxes, nms_oks_thresh)
+    keypoints, scores, boxes = keypoints[keep], scores[keep], boxes[keep]
+    conf = scores > det_thresh
+    keypoints, scores, boxes = keypoints[conf], scores[conf], boxes[conf]
+    if len(scores) == 0:
+        return np.zeros((0, 4)), np.zeros((0, keypoints.shape[1], 3))
+    areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+    bbox_height = boxes[:, 3] - boxes[:, 1]
+    combined = 0.5 * areas / np.max(areas) + 0.5 * scores / np.max(scores)
+    idxs = [x for x in np.argsort(combined)[::-1] if combined[x] > score_thresh]
+    if len(idxs) > 1:
+        largest = bbox_height[np.argmax(bbox_height)]
+        idxs = [x for x in idxs if bbox_height[x] > largest * height_thresh]
+    return boxes[idxs], keypoints[idxs]
+
+
 def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_type, 
                              detector_type='detectron2', filter_ng_points=False, kp_thres=0.1, 
                              num_max_people=10, height_thresh=0.3, score_thresh=0.4, det_thresh=0.5, 
                              bbox_interp=False, nms_oks_thresh=0.5, keyframe_search=False,
-                             keyframe_stride=10, keyframe_search_frac=0.15):
+                             keyframe_stride=10, keyframe_search_frac=0.15,
+                             reacquire=False, reacq_stride=50, reacq_iou=0.3):
     from torch.utils.data import DataLoader
     from torchvision.models.segmentation import DeepLabV3_ResNet50_Weights
     from detectron2.config import get_cfg
@@ -333,36 +367,70 @@ def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_typ
         
         video_segments = {}
         track_results = {}
-        # propagate the prompts to get masklets throughout the video
-        for t, out_obj_ids, out_mask_logits in predictor.propagate_in_video(state):
-            if debug_masks:
-                video_segments[t] = {
-                    out_obj_id: (out_mask_logits[i] > 0.0).cpu().numpy()
-                    for i, out_obj_id in enumerate(out_obj_ids)
-                }
-            
-            boxes = batched_mask_to_box(out_mask_logits > 0.0)
-            for obj_id, box, obj_msk in zip(out_obj_ids, boxes, out_mask_logits):
-                if obj_id not in track_results:
-                    track_results[obj_id] = {
-                        'track_id': obj_id,
-                        'bbox_format': 'x1y1x2y2',
-                        'frames': [],
-                        'bboxes': [],
-                        'masks': [],
+
+        def _collect(prop_iter):
+            for t, out_obj_ids, out_mask_logits in prop_iter:
+                if debug_masks:
+                    video_segments[t] = {
+                        out_obj_id: (out_mask_logits[i] > 0.0).cpu().numpy()
+                        for i, out_obj_id in enumerate(out_obj_ids)
                     }
-                track_results[obj_id]['frames'].append(t)
-                obj_msk = (obj_msk[0] > 0.0).cpu().numpy().astype(np.bool_)
-                track_results[obj_id]['bboxes'].append(box[0].cpu().numpy())
-                track_results[obj_id]['masks'].append(obj_msk)
-                
+                boxes = batched_mask_to_box(out_mask_logits > 0.0)
+                for obj_id, box, obj_msk in zip(out_obj_ids, boxes, out_mask_logits):
+                    tr = track_results.setdefault(obj_id, {
+                        'track_id': obj_id, 'bbox_format': 'x1y1x2y2', 'by_frame': {}})
+                    tr['by_frame'][t] = (box[0].cpu().numpy(),
+                                         (obj_msk[0] > 0.0).cpu().numpy().astype(np.bool_))
+
+        # propagate the prompts to get masklets throughout the video
+        _collect(predictor.propagate_in_video(state))
+
+        # Multi-keyframe re-acquisition: SAM2 forward-only propagation permanently loses
+        # dancers who exit the frame. Re-detect at later frames and re-condition the lost
+        # object id when it re-appears, then re-propagate from that frame (overwrites >=F).
+        if reacquire:
+            n_frames = len(images)
+
+            def _last_valid(tr):
+                vs = [t for t, (b, m) in tr['by_frame'].items()
+                      if (b[2] - b[0]) > 10 and (b[3] - b[1]) > 10]
+                return max(vs) if vs else -1
+
+            lost = [oid for oid, tr in track_results.items()
+                    if _last_valid(tr) < n_frames - 1 - reacq_stride]
+            for oid in sorted(lost, key=lambda o: _last_valid(track_results[o])):
+                tr = track_results[oid]
+                last = _last_valid(tr)
+                lb = tr['by_frame'][last][0]
+                lc = np.array([(lb[0] + lb[2]) / 2, (lb[1] + lb[3]) / 2])
+                for F in range(last + reacq_stride, n_frames, reacq_stride):
+                    db, dk = _detect_people_at(detector, images, F, nms_oks_thresh,
+                                               det_thresh, score_thresh, height_thresh)
+                    if len(db) == 0:
+                        continue
+                    alive = [t2['by_frame'][F][0] for t2 in track_results.values()
+                             if F in t2['by_frame']
+                             and (t2['by_frame'][F][0][2] - t2['by_frame'][F][0][0]) > 10]
+                    unmatched = [j for j in range(len(db))
+                                 if all(_box_iou(db[j], ab) < reacq_iou for ab in alive)]
+                    if not unmatched:
+                        continue
+                    j = min(unmatched, key=lambda j: np.linalg.norm(
+                        np.array([(db[j][0] + db[j][2]) / 2, (db[j][1] + db[j][3]) / 2]) - lc))
+                    pos_kp = dk[j][dk[j, :, 2] > kp_thres]
+                    points = np.concatenate([pos_kp[:, :2], db[j].reshape(-1, 2)], axis=0)
+                    labels = np.concatenate([np.ones(len(pos_kp)), np.array([2, 3])]).astype(np.int64)
+                    predictor.add_new_points(state, frame_idx=F, obj_id=oid,
+                                             labels=labels, points=points)
+                    _collect(predictor.propagate_in_video(state, start_frame_idx=F))
+                    print(f"[reacquire] track {oid} lost after {last}, re-init at frame {F}")
+                    break
+
         for k in track_results.keys():
-            track_results[k]['frames'] = np.array(track_results[k]['frames'])
-            track_results[k]['bboxes'] = np.array(track_results[k]['bboxes'])
-            track_results[k]['masks'] = np.array(track_results[k]['masks'])
-            bboxes = track_results[k]['bboxes']
-            frames = track_results[k]['frames']
-            obj_masks = track_results[k]['masks']
+            ts = sorted(track_results[k]['by_frame'].keys())
+            frames = np.array(ts)
+            bboxes = np.array([track_results[k]['by_frame'][t][0] for t in ts])
+            obj_masks = np.array([track_results[k]['by_frame'][t][1] for t in ts])
             
             bb_heights = bboxes[:, 3] - bboxes[:, 1]
             bb_widths = bboxes[:, 2] - bboxes[:, 0]

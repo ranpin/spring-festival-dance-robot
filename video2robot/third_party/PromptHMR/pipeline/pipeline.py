@@ -86,7 +86,10 @@ class Pipeline:
                 nms_oks_thresh=self.cfg.get('nms_oks_thresh', 0.5),
                 keyframe_search=self.cfg.get('keyframe_search', False),
                 keyframe_stride=self.cfg.get('keyframe_stride', 10),
-                keyframe_search_frac=self.cfg.get('keyframe_search_frac', 0.15)
+                keyframe_search_frac=self.cfg.get('keyframe_search_frac', 0.15),
+                reacquire=self.cfg.get('reacquire', False),
+                reacq_stride=self.cfg.get('reacq_stride', 50),
+                reacq_iou=self.cfg.get('reacq_iou', 0.3)
             )
             
         self.results['masks'] = masks
