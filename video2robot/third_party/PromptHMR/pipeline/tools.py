@@ -511,6 +511,14 @@ def detect_segment_track_sam3(images, out_path, bbox_interp=False, num_max_peopl
         kw = {k: v for k, v in kw.items() if k in _sig.parameters}
         return _orig_init(self, *a, **kw)
     _C.init_state = _patched_init
+    # T4 (sm75) lacks fp8 flash-attn-3; vitdet imports fa3.flash_attn_func at call time,
+    # so swap it for an sdpa fallback (bf16/fp16) that Turing can run.
+    import sam3.perflib.fa3 as _fa3
+    def _sdpa_attn(q, k, v):
+        q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
+        o = torch.nn.functional.scaled_dot_product_attention(q, k, v)
+        return o.transpose(1, 2)
+    _fa3.flash_attn_func = _sdpa_attn
     r = predictor.handle_request(request=dict(type="start_session", resource_path=resource))
     sid = r["session_id"]
     predictor.handle_request(request=dict(type="add_prompt", session_id=sid,
