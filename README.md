@@ -49,6 +49,10 @@ cd video2robot && ./run_demo.sh
 
 `run_demo.sh` 用法：`./run_demo.sh`（全部 9 个机器人 + subsample 2）、`--tracks 1 2 3`（只看某几个）、`PORT=9000 ./run_demo.sh`（换端口）。
 
+启动后的交互式 3D 演示（9 台 G1 齐舞 + 原视频叠加 + 相机视锥 + 逐轨迹开关）：
+
+![viser 交互式 3D 演示：9 台 Unitree G1 复刻春晚群舞](assets/demo.png)
+
 产物（`results.pkl` / `robot_motion*.pkl` / `smplx*.npz`）**不入仓**——体积大且可重生，需要时跑 Kaggle kernel 自动产出。
 
 ⚠️ 复现前必看：权重路径（HF ~14.8G、PromptHMR 硬编码 `/code` 软链）、`--static-camera` 绕开缺失的 `droid.pth`、`results.pkl` masks 瘦身（~11GB→~100MB）、Kaggle 磁盘配额等——见 [docs/NOTES.md](docs/NOTES.md)。
