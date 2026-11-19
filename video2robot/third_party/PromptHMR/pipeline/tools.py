@@ -501,14 +501,16 @@ def detect_segment_track_sam3(images, out_path, bbox_interp=False, num_max_peopl
         resource = os.path.dirname(images[0])
 
     predictor = build_sam3_multiplex_video_predictor()
-    # sam3 main-branch bug: start_session passes offload_state_to_cpu/video_loader_type
-    # which the multiplex init_state signature rejects; filter kwargs to accepted params.
-    _orig_init = predictor.init_state
+    # sam3 main-branch bug: base start_session passes offload_state_to_cpu/video_loader_type
+    # which the multiplex tracking init_state signature rejects. Patch at CLASS level
+    # (predictor itself has no init_state attribute; it resolves to the tracking mixin).
+    from sam3.model.sam3_multiplex_tracking import Sam3MultiplexTrackingWithInteractivity as _C
+    _orig_init = _C.init_state
     _sig = inspect.signature(_orig_init)
-    def _patched_init(*a, **kw):
+    def _patched_init(self, *a, **kw):
         kw = {k: v for k, v in kw.items() if k in _sig.parameters}
-        return _orig_init(*a, **kw)
-    predictor.init_state = _patched_init
+        return _orig_init(self, *a, **kw)
+    _C.init_state = _patched_init
     r = predictor.handle_request(request=dict(type="start_session", resource_path=resource))
     sid = r["session_id"]
     predictor.handle_request(request=dict(type="add_prompt", session_id=sid,
