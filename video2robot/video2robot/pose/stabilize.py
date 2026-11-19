@@ -33,15 +33,18 @@ def detrend_trans(pos, fps, win_seconds=2.0, anchor="first"):
     return base + local
 
 
-def needs_stabilize(pos, fps, speed_p95_thresh=3.0, accel_p95_thresh=20.0):
-    """Flag trajectories whose speed/acceleration exceed plausible human dance motion
-    (signature of monocular depth drift). Good tracks stay untouched."""
-    p = np.asarray(pos, np.float64)
+def needs_stabilize(pos, fps, speed_p95_thresh=3.0, accel_p95_thresh=20.0, skip_frames=60):
+    """Flag trajectories whose speed AND acceleration exceed plausible human dance
+    motion (signature of monocular depth drift). Early frames are excluded because
+    camera/world estimation is unstable there and would over-trigger. Good tracks
+    stay untouched."""
+    p = np.asarray(pos, np.float64)[skip_frames:]
     if len(p) < 5:
         return False
     v = np.linalg.norm(np.diff(p, axis=0), axis=1) * fps
     a = np.linalg.norm(np.diff(p, n=2, axis=0), axis=1) * fps * fps
-    return np.percentile(v, 95) > speed_p95_thresh or np.percentile(a, 95) > accel_p95_thresh
+    return (np.percentile(v, 95) > speed_p95_thresh
+            and np.percentile(a, 95) > accel_p95_thresh)
 
 
 def stabilize_world(pos, fps, win_seconds=2.0):

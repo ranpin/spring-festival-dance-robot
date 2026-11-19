@@ -478,6 +478,89 @@ def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_typ
     return track_results, masks
 
 
+def detect_segment_track_sam3(images, out_path, bbox_interp=False, num_max_people=10,
+                              prompt_frame=0, prompt_text="person"):
+    """SAM3.1 Object Multiplex tracker: text-concept detection + dense tracking.
+
+    Returns (track_results, masks) with the SAME interface as detect_segment_track_sam
+    so downstream (ViTPose / SLAM / HPS / world) is unchanged. Unlike SAM2's forward-only
+    propagation, the decoupled detector re-finds concept instances, handling dancers who
+    exit and re-enter the frame.
+    """
+    import tempfile
+    from sam3.model_builder import build_sam3_multiplex_video_predictor
+
+    if isinstance(images[0], np.ndarray):
+        frame_dir = os.path.join(out_path, "sam3_frames")
+        os.makedirs(frame_dir, exist_ok=True)
+        for i, im in enumerate(images):
+            cv2.imwrite(os.path.join(frame_dir, f"{i:06d}.jpg"), im[..., ::-1])
+        resource = frame_dir
+    else:
+        resource = os.path.dirname(images[0])
+
+    predictor = build_sam3_multiplex_video_predictor()
+    r = predictor.handle_request(request=dict(type="start_session", resource_path=resource))
+    sid = r["session_id"]
+    predictor.handle_request(request=dict(type="add_prompt", session_id=sid,
+                                          frame_index=prompt_frame, text=prompt_text))
+
+    by_frame = {}
+    for resp in predictor.handle_stream_request(request=dict(type="propagate_in_video", session_id=sid)):
+        t = resp["frame_index"]
+        out = resp["outputs"]
+        ids = np.asarray(out["out_obj_ids"]).tolist()
+        masks_arr = np.asarray(out["out_binary_masks"])
+        frame_masks = {}
+        for i, oid in enumerate(ids):
+            m = masks_arr[i].astype(np.bool_)
+            if not m.any():
+                continue
+            ys, xs = np.where(m)
+            box = np.array([xs.min(), ys.min(), xs.max(), ys.max()], np.float64)
+            frame_masks[oid] = (box, m)
+        by_frame[t] = frame_masks
+    # rebuild per-frame union mask stack
+    T = len(images)
+    H, W = images[0].shape[:2] if isinstance(images[0], np.ndarray) else cv2.imread(images[0]).shape[:2]
+    masks = np.zeros((T, H, W), np.bool_)
+    track_results = {}
+    for t, fm in by_frame.items():
+        u = np.zeros((H, W), np.bool_)
+        for oid, (box, m) in fm.items():
+            tr = track_results.setdefault(oid, {'track_id': oid, 'bbox_format': 'x1y1x2y2', 'by_frame': {}})
+            tr['by_frame'][t] = (box, m)
+            u |= m
+        masks[t] = u
+
+    for k in track_results.keys():
+        ts = sorted(track_results[k]['by_frame'].keys())
+        frames = np.array(ts)
+        bboxes = np.array([track_results[k]['by_frame'][t][0] for t in ts])
+        obj_masks = np.array([track_results[k]['by_frame'][t][1] for t in ts])
+        bb_h = bboxes[:, 3] - bboxes[:, 1]
+        bb_w = bboxes[:, 2] - bboxes[:, 0]
+        good = np.logical_and(bb_h > 10, bb_w > 10)
+        frames, bboxes, obj_masks = frames[good], bboxes[good], obj_masks[good]
+        if len(frames) == 0:
+            print(f"No valid bboxes or frames for track {k}")
+            continue
+        if bbox_interp:
+            ib, iff, im = interpolate_bboxes(bboxes, frames, obj_masks, fn='linear')
+        else:
+            ib, iff, im = bboxes, frames, obj_masks
+        track_results[k]['frames'] = iff
+        track_results[k]['bboxes'] = ib
+        track_results[k]['masks'] = im
+        track_results[k]['detected'] = np.sum(im, axis=(1, 2)) > 1
+
+    track_results = dict(sorted(track_results.items(), key=lambda x: len(x[1]['frames']), reverse=True))
+    keep = list(track_results.keys())[:num_max_people]
+    track_results = {k: v for k, v in track_results.items() if k in keep}
+    del predictor
+    return track_results, masks
+
+
 def recursive_to_dict(obj):
     """Convert a nested structure of defaultdicts (and any normal dicts) into plain dicts."""
     if isinstance(obj, defaultdict):          # or `collections.abc.Mapping`

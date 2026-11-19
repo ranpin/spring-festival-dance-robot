@@ -11,7 +11,7 @@ from pipeline.detector import segment
 from pipeline.detector.vitpose_estimator import load_vit_model, estimate_kp2ds_from_bbox_vitpose
 from pipeline.kp_utils import convert_kps
 from pipeline.utils import prepare_inputs, load_video_frames, interpolate_bboxes
-from pipeline.tools import detect_track, detect_segment_track_sam, est_camera, est_calib
+from pipeline.tools import detect_track, detect_segment_track_sam, detect_segment_track_sam3, est_camera, est_calib
 from pipeline.phmr_vid import PromptHMR_Video
 from pipeline.camera import run_metric_slam, calibrate_intrinsics, run_slam
 from pipeline.spec import run_cam_calib
@@ -91,7 +91,17 @@ class Pipeline:
                 reacq_stride=self.cfg.get('reacq_stride', 50),
                 reacq_iou=self.cfg.get('reacq_iou', 0.3)
             )
-            
+
+        elif self.cfg.tracker == 'sam3':
+            tracks, masks = detect_segment_track_sam3(
+                self.images,
+                self.seq_folder,
+                bbox_interp=self.cfg.bbox_interp,
+                num_max_people=self.cfg.num_max_people,
+                prompt_frame=self.cfg.get('sam3_prompt_frame', 0),
+                prompt_text=self.cfg.get('sam3_prompt_text', 'person'),
+            )
+
         self.results['masks'] = masks
         self.results['people'] = tracks
         self.results['has_tracks'] = True
