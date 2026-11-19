@@ -488,6 +488,7 @@ def detect_segment_track_sam3(images, out_path, bbox_interp=False, num_max_peopl
     exit and re-enter the frame.
     """
     import tempfile
+    import inspect
     from sam3.model_builder import build_sam3_multiplex_video_predictor
 
     if isinstance(images[0], np.ndarray):
@@ -500,6 +501,14 @@ def detect_segment_track_sam3(images, out_path, bbox_interp=False, num_max_peopl
         resource = os.path.dirname(images[0])
 
     predictor = build_sam3_multiplex_video_predictor()
+    # sam3 main-branch bug: start_session passes offload_state_to_cpu/video_loader_type
+    # which the multiplex init_state signature rejects; filter kwargs to accepted params.
+    _orig_init = predictor.init_state
+    _sig = inspect.signature(_orig_init)
+    def _patched_init(*a, **kw):
+        kw = {k: v for k, v in kw.items() if k in _sig.parameters}
+        return _orig_init(*a, **kw)
+    predictor.init_state = _patched_init
     r = predictor.handle_request(request=dict(type="start_session", resource_path=resource))
     sid = r["session_id"]
     predictor.handle_request(request=dict(type="add_prompt", session_id=sid,
