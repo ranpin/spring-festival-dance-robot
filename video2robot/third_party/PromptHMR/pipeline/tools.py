@@ -293,12 +293,14 @@ def detect_segment_track_sam(images, out_path, paths_dict, debug_masks, sam2_typ
                 video_path=os.path.dirname(images[0]),
                 async_loading_frames=False,
                 offload_video_to_cpu=True,
+                offload_state_to_cpu=True,
             )
         elif isinstance(images[0], np.ndarray):
             state = predictor.init_state(
                 video_frames=images,
                 async_loading_frames=False,
                 offload_video_to_cpu=True,
+                offload_state_to_cpu=True,
             )
 
         if debug_masks:

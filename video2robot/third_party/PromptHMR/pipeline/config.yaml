@@ -20,7 +20,7 @@ det_height_thresh: 0.3
 nms_oks_thresh: 0.7
 keyframe_search: true
 keyframe_stride: 10
-keyframe_search_frac: 0.15
+keyframe_search_frac: 0.03
 # Multi-keyframe re-acquisition: re-detect + re-condition dancers who exit and re-enter
 # the frame (SAM2 forward-only propagation otherwise loses them permanently).
 # Disabled: naive last-position matching mis-associates and regressed coverage (v7);
